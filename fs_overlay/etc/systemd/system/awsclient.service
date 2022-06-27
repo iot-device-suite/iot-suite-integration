@@ -1,0 +1,17 @@
+[Unit]
+Description=OSB AWS Client
+After=network.target
+
+[Service]
+User=root
+Environment="OPENSSL_CONF=/etc/ssl/openssl_sss_se050.cnf"
+Environment="EX_SSS_BOOT_SSS_PORT=/dev/i2c-0:0x48"
+ExecStartPre=/bin/ping -c 3 -w 7 aws.amazon.com
+ExecStart=/usr/bin/awsclient
+WorkingDirectory=/data/os/aws/
+TimeoutStartSec=15m
+Restart=on-failure
+RestartSec=1m
+
+[Install]
+WantedBy=multi-user.target

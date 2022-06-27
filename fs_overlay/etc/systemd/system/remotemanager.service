@@ -1,0 +1,16 @@
+[Unit]
+Description=Remote SSH Manager
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+User=root
+ExecStart=/usr/bin/remotemanager -k /data/config/os/esec/.ssh/id_ecdsa -c /data/config/os/esec/RemoteManager.conf
+WorkingDirectory=/data/config/os/esec/
+
+
+[Install]
+WantedBy=multi-user.target
