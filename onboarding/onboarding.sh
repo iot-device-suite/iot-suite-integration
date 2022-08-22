@@ -124,6 +124,8 @@ jq --arg uid "$uid" '.thing_name = $uid | .client_id = $uid' config/config.json 
 
 ssscli generate ecc 0x20181006 NIST_P256
 
+rm certs/privkey.pem
+
 ssscli refpem ecc pair 0x20181006 certs/privkey.pem
 
 # Creating the CSR
