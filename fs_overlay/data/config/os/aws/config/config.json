@@ -13,8 +13,8 @@
   "aws_access_key_id": "",
   "aws_secret_access_key": "",
   "aws_session_token": "",
-  "client_id": "0x0400500107d81d0ab04c5904334b0a946680",
-  "thing_name": "0x0400500107d81d0ab04c5904334b0a946680",
+  "client_id": "CLIENT_ID",
+  "thing_name": "THING_NAME",
   "is_clean_session": true,
   "mqtt_command_timeout_msecs": 20000,
   "keepalive_interval_secs": 600,
@@ -35,9 +35,39 @@
   "ssh_pub_key_dir": "/data/config/os/esec/.ssh/",
   "ssh_pub_key_file": "id_ecdsa.pub",
 
-  "isoconnect_app_config_dir": "/data/config/os/isoconnect/",
-  "isoconnect_app_config_file": "isoconnect.cfg",
-  "isoconnect_app_config_signature_file": "",
+  "isoconnect_app_config_dir": "/data/config/os/app_isoconnect/config/",
+  "isoconnect_app_config_file": "customer_config.txt",
+  "isoconnect_app_config_signature_file": "customer_config.txt.sig",
 
-  "desired_hawkbit_server_url": "https://hawkbit.prod.esec.aws.esec-experts.com"
+  "maintenance_task_temp_download_dir": "/data/config/os/dm/downloads/",
+  "maintenance_task_download_whitelist_path": "/data/config/os/aws/config/download_whitelist.txt",
+  "maintenance_task_command_whitelist_path": "/data/config/os/aws/config/command_whitelist.txt",
+
+  "log_database_path": "/data/config/os/dm/awsclient_log_database.db",
+
+  "desired_hawkbit_server_url": "",
+  
+  "shadow_commands": [
+     ["timer", "grep OnUnitActiveSec= /etc/systemd/system/awsclient.timer | grep -o [^=]*.$ | tr -d \"\\n\""],
+	 ["fs_data", "df | grep /data$ | tr -s \" \" | tr -d \"\\n\""],
+	 ["fs_otg", "df | grep /media/otg$ | tr -s \" \" | tr -d \"\\n\""],
+	 ["fs_log", "df | grep /var/volatile/log$ | tr -s \" \" | tr -d \"\\n\""],
+	 ["fs_cnf", "df | grep /config$ | tr -s \" \" | tr -d \"\\n\""],
+	 ["fs_app", "df | grep /app$ | tr -s \" \" | tr -d \"\\n\""],
+	 ["fs_root", "df | grep /$ | tr -s \" \" | tr -d \"\\n\""],
+	 ["up", "cat /proc/uptime | tr -d \"\\n\""],
+	 ["krn", "cat /proc/version | tr -d \"\\n\""],
+	 ["cpu", "cat /proc/loadavg | tr -d \"\\n\""],
+	 ["mem_a", "grep MemAvailable /proc/meminfo | tr -s \" \" | cut -d \" \" -f2 | tr -d \"\\n\""],
+	 ["mem_f", "grep MemFree /proc/meminfo | tr -s \" \" | cut -d \" \" -f2 | tr -d \"\\n\""],
+	 ["mem_t", "grep MemTotal /proc/meminfo | tr -s \" \" | cut -d \" \" -f2 | tr -d \"\\n\""],
+	 ["simnoshort", "echo -n xxx"],
+	 ["simno", "mmcli -i any | grep iccid | cut -f2 -d: | xargs"],
+	 ["modem_variant", "bhtinfo -l | tr -d \"\\n\""],
+	 ["remote_manager_version", "remotemanager -v | tr -d \"\\n\""],
+	 ["rauc-hawkbit-updater", " rauc-hawkbit-updater -v | tr -d \"\\n\""],
+	 ["hwver", "echo -n 001"],
+	 ["devtype", "echo -n xx"],
+	 ["serial", "echo -n xx"]   
+  ]
 }
