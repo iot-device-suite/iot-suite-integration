@@ -133,13 +133,23 @@ export OPENSSL_CONF=/etc/ssl/openssl_sss_se050.cnf
 
 export EX_SSS_BOOT_SSS_PORT=/dev/i2c-0:0x48
 
-openssl req -subj "/CN=$1/O=$CUSTOMER_NAME" -batch -new -key certs/privkey.pem -out "certs/$uid.pem"
+rm "certs/$uid.pem"
+
+openssl req -subj "/CN=$uid/pseudonym=$1" -batch -new -key certs/privkey.pem -out "certs/$uid.pem"
 
 ssscli disconnect
 
 unset OPENSSL_CONF
 
 unset EX_SSS_BOOT_SSS_PORT
+
+csr_base64=$(openssl base64 -in "certs/$uid.pem")
+
+csr_base64_trimmed=$(echo ${csr_base64} | tr -d '\n')
+
+csr_base64_trimmed=$(echo ${csr_base64_trimmed} | tr -d ' ')
+
+curl --location --request POST 'https://raspberrypi:9000/hooks/issue_cert' --header 'Content-Type: application/json' --data-raw "{\"binary\":\"${csr_base64_trimmed}\"}"
 
 # Creating the SSH key
 # ssh-keygen -f "$(jq -r '.remote_manager_config_dir' config/config.json)/.ssh/id_ecdsa" -t ecdsa -b 256
