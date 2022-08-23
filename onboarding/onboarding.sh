@@ -5,6 +5,7 @@
 # Cleanup
 function finish {
 	ssscli disconnect
+	echo "Done"
 }
 trap finish EXIT
 
@@ -12,10 +13,18 @@ AWSCLIENT_HOME=/data/config/os/aws/
 CUSTOMER_NAME=automation-one
 
 # Create Folder Structure
+echo "Creating Folder Structure ..."
 mkdir -p /data/config/os/aws/certs /data/config/os/aws/config
+# mkdir -p $(jq -r '.rauc_hawkbit_client_config_dir' config/config.json)
+mkdir -p /data/config/os/hawkbit/
+# mkdir -p "$(jq -r '.remote_manager_config_dir' config/config.json)/.ssh"
+mkdir -p /data/config/os/esec/.ssh
+# mkdir -p $(jq -r '.maintenance_task_temp_download_dir' config/config.json)
+mkdir -p /data/config/os/dm/downloads/
 
 cd $AWSCLIENT_HOME
 
+echo "Writing template for awsclient config ..."
 cat > config/config.json <<EOF
 {
   "endpoint": "aqbh9vo6udjdm-ats.iot.eu-central-1.amazonaws.com",
@@ -60,24 +69,25 @@ cat > config/config.json <<EOF
   "desired_hawkbit_server_url": "",  
   "shadow_commands": [
      ["timer", "grep OnUnitActiveSec= /etc/systemd/system/awsclient.timer | grep -o [^=]*.$ | tr -d \"\\n\""],
-	 ["fs_data", "df | grep /data$ | tr -s \" \" | tr -d \"\\n\""],
-	 ["fs_log", "df | grep /var/volatile/log$ | tr -s \" \" | tr -d \"\\n\""],
-	 ["fs_root", "df | grep /$ | tr -s \" \" | tr -d \"\\n\""],
-	 ["up", "cat /proc/uptime | tr -d \"\\n\""],
-	 ["krn", "cat /proc/version | tr -d \"\\n\""],
-	 ["cpu", "cat /proc/loadavg | tr -d \"\\n\""],
-	 ["mem_a", "grep MemAvailable /proc/meminfo | tr -s \" \" | cut -d \" \" -f2 | tr -d \"\\n\""],
-	 ["mem_f", "grep MemFree /proc/meminfo | tr -s \" \" | cut -d \" \" -f2 | tr -d \"\\n\""],
-	 ["mem_t", "grep MemTotal /proc/meminfo | tr -s \" \" | cut -d \" \" -f2 | tr -d \"\\n\""],
-	 ["remote_manager_version", "remotemanager -v | tr -d \"\\n\""],
-	 ["rauc-hawkbit-updater", " rauc-hawkbit-updater -v | tr -d \"\\n\""],
-	 ["hwver", "echo -n 99"],
-	 ["devtype", "echo -n 99"],
-	 ["serial", "echo -n 99"]   
+     ["fs_data", "df | grep /data$ | tr -s \" \" | tr -d \"\\n\""],
+     ["fs_log", "df | grep /var/volatile$ | tr -s \" \" | tr -d \"\\n\""],
+     ["fs_root", "df | grep /$ | tr -s \" \" | tr -d \"\\n\""],
+     ["up", "cat /proc/uptime | tr -d \"\\n\""],
+     ["krn", "cat /proc/version | tr -d \"\\n\""],
+     ["cpu", "cat /proc/loadavg | tr -d \"\\n\""],
+     ["mem_a", "grep MemAvailable /proc/meminfo | tr -s \" \" | cut -d \" \" -f2 | tr -d \"\\n\""],
+     ["mem_f", "grep MemFree /proc/meminfo | tr -s \" \" | cut -d \" \" -f2 | tr -d \"\\n\""],
+     ["mem_t", "grep MemTotal /proc/meminfo | tr -s \" \" | cut -d \" \" -f2 | tr -d \"\\n\""],
+     ["remote_manager_version", "remotemanager -v | tr -d \"\\n\""],
+     ["rauc-hawkbit-updater", " rauc-hawkbit-updater -v | tr -d \"\\n\""],
+     ["hwver", "echo -n 99"],
+     ["devtype", "echo -n 99"],
+     ["serial", "echo -n 99"]   
   ]
 }
 EOF
 
+echo "Writing AWS Root Certificate ..."
 cat > certs/rootCA.crt <<EOF
 -----BEGIN CERTIFICATE-----
 MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF
@@ -101,56 +111,61 @@ rqXRfboQnoZsG4q5WTP468SQvvG5
 -----END CERTIFICATE-----
 EOF
 
-# Create Folder Structure
-# mkdir -p $(jq -r '.rauc_hawkbit_client_config_dir' config/config.json)
-mkdir -p /data/config/os/hawkbit/
-# mkdir -p "$(jq -r '.remote_manager_config_dir' config/config.json)/.ssh"
-mkdir -p /data/config/os/esec/.ssh
-# mkdir -p $(jq -r '.maintenance_task_temp_download_dir' config/config.json)
-mkdir -p /data/config/os/dm/downloads/
-
-
 # SE050 Operations
+echo "Connecting to SE050 via i2c ..."
 ssscli connect se05x t1oi2c /dev/i2c-0:0x48
 
 # Resetting the SE050
+echo "Resetting the SE050 ..."
 ssscli se05x reset
 
 # Getting the UID of the SE050
+echo "Getting the UID of the SE050 ..."
 uid=0x$(ssscli se05x uid 2> /dev/null | grep "Unique ID: " | grep -o -E "[0-9a-f]{36}")
+echo "uid=${uid}"
 
 # Modifying the config.json file of the awsclient according to the uid of the SE050
+echo "Modifying the config file of the awsclient ..."
 jq --arg uid "$uid" '.thing_name = $uid | .client_id = $uid' config/config.json  > /tmp/config.json && mv /tmp/config.json config/config.json
 
+echo "Generating a NIST_P256 private key ..."
 ssscli generate ecc 0x20181006 NIST_P256
 
+echo "Removing existing privkey.pem file ..."
 rm certs/privkey.pem
 
+echo "Generating refpem for NIST_P256 private key ..."
 ssscli refpem ecc pair 0x20181006 certs/privkey.pem
 
 # Creating the CSR
+echo "Exporting environment variables ..."
 export OPENSSL_CONF=/etc/ssl/openssl_sss_se050.cnf
-
 export EX_SSS_BOOT_SSS_PORT=/dev/i2c-0:0x48
 
+echo "Removing existing certificate file ..."
 rm "certs/$uid.pem"
 
+echo "Creating the CSR ..."
 openssl req -subj "/CN=$uid/pseudonym=$1" -batch -new -key certs/privkey.pem -out "certs/$uid.pem"
 
+echo "Disconnecting from the SE050 ..."
 ssscli disconnect
 
+echo "Unsetting the environment variables ..."
 unset OPENSSL_CONF
-
 unset EX_SSS_BOOT_SSS_PORT
 
+echo "Converting the CSR to base64 ..."
 csr_base64=$(openssl base64 -in "certs/$uid.pem")
-
 csr_base64_trimmed=$(echo ${csr_base64} | tr -d '\n')
-
 csr_base64_trimmed=$(echo ${csr_base64_trimmed} | tr -d ' ')
 
-curl --location --request POST 'https://raspberrypi:9000/hooks/issue_cert' --header 'Content-Type: application/json' --data-raw "{\"binary\":\"${csr_base64_trimmed}\"}"
+echo "Requesting certificate from raspberry pi ..."
+curl --location --request POST 'https://raspberrypi:9000/hooks/issue_cert' --header 'Content-Type: application/json' --data-raw "{\"binary\":\"${csr_base64_trimmed}\"}" > certs/cert.pem
 
-# Creating the SSH key
-# ssh-keygen -f "$(jq -r '.remote_manager_config_dir' config/config.json)/.ssh/id_ecdsa" -t ecdsa -b 256
-ssh-keygen -f /data/config/os/esec/.ssh/id_ecdsa -t ecdsa -b 256
+# Recreating the SSH key
+echo "Removing existing SSH key ..."
+rm /data/config/os/esec/.ssh/id_ecdsa
+
+echo "Creating the SSH key ..."
+ssh-keygen -f /data/config/os/esec/.ssh/id_ecdsa -t ecdsa -b 256 -N ""
