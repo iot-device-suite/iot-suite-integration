@@ -9,6 +9,36 @@ function finish {
 }
 trap finish EXIT
 
+# User Input
+echo "This script will reset the SE050. Do you want to continue (y/n)?"
+
+read answer
+
+if [ "$answer" != "${answer#[Nn]}" ] ;then
+    exit
+else
+    echo "Continuing ..."
+fi
+
+# Checking if provisioning webhook is running
+health_status=$(curl --location --request POST 'https://raspberrypi:9000/hooks/health_status' --header 'Content-Type: application/json')
+
+if [ "$health_status" != "Good" ] ;then
+    echo "Provisioning webhook is not running as expected. Aborting ..."
+	exit
+else
+    echo "Provisioning webhook is running as expected. Continuing ..."
+fi
+
+DeviceName=$1
+
+if echo $DeviceName | grep -E -q "^[a-zA-Z_]([a-zA-Z0-9_-]{0,31}|[a-zA-Z0-9_-]{0,30}\$)$"; then 
+	echo "The given device name is valid"
+else 
+	echo "The given device name does not match the following regex: ^[a-zA-Z_]([a-zA-Z0-9_-]{0,31}|[a-zA-Z0-9_-]{0,30}\$)$"
+	exit
+fi
+
 AWSCLIENT_HOME=/data/config/os/aws/
 CUSTOMER_NAME=automation-one
 
@@ -79,6 +109,7 @@ cat > config/config.json <<EOF
      ["mem_f", "grep MemFree /proc/meminfo | tr -s \" \" | cut -d \" \" -f2 | tr -d \"\\n\""],
      ["mem_t", "grep MemTotal /proc/meminfo | tr -s \" \" | cut -d \" \" -f2 | tr -d \"\\n\""],
      ["remote_manager_version", "remotemanager -v | tr -d \"\\n\""],
+     ["remotemanager_service_status", "systemctl is-active remotemanager.service | tr -d \"\\n\""],
      ["rauc-hawkbit-updater", " rauc-hawkbit-updater -v | tr -d \"\\n\""],
      ["hwver", "echo -n 99"],
      ["devtype", "echo -n 99"],
@@ -110,6 +141,8 @@ o/ufQJVtMVT8QtPHRh8jrdkPSHCa2XV4cdFyQzR1bldZwgJcJmApzyMZFo6IQ6XU
 rqXRfboQnoZsG4q5WTP468SQvvG5
 -----END CERTIFICATE-----
 EOF
+
+ssscli disconnect
 
 # SE050 Operations
 echo "Connecting to SE050 via i2c ..."
@@ -146,10 +179,7 @@ echo "Removing existing certificate file ..."
 rm "certs/$uid.pem"
 
 echo "Creating the CSR ..."
-openssl req -subj "/CN=$uid/pseudonym=$1" -batch -new -key certs/privkey.pem -out "certs/$uid.pem"
-
-echo "Disconnecting from the SE050 ..."
-ssscli disconnect
+openssl req -subj "/CN=$uid/pseudonym=$DeviceName" -batch -new -key certs/privkey.pem -out "certs/$uid.pem"
 
 echo "Unsetting the environment variables ..."
 unset OPENSSL_CONF
@@ -162,6 +192,10 @@ csr_base64_trimmed=$(echo ${csr_base64_trimmed} | tr -d ' ')
 
 echo "Requesting certificate from raspberry pi ..."
 curl --location --request POST 'https://raspberrypi:9000/hooks/issue_cert' --header 'Content-Type: application/json' --data-raw "{\"binary\":\"${csr_base64_trimmed}\"}" > certs/cert.pem
+
+echo "Writing certificates to SE050 ..."
+ssscli set cert 0x20181002 --format PEM certs/rootCA.crt
+ssscli set cert 0x20181004 --format PEM certs/cert.pem
 
 # Recreating the SSH key
 echo "Removing existing SSH key ..."
