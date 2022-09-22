@@ -21,7 +21,7 @@ else
 fi
 
 # Checking if provisioning webhook is running
-health_status=$(curl --location --request POST 'https://raspberrypi:9000/hooks/health_status' --header 'Content-Type: application/json')
+health_status=$(curl --location --request POST 'https://jitp-server.local:9000/hooks/health_status' --header 'Content-Type: application/json')
 
 if [ "$health_status" != "Good" ] ;then
     echo "Provisioning webhook is not running as expected. Aborting ..."
@@ -191,7 +191,7 @@ csr_base64_trimmed=$(echo ${csr_base64} | tr -d '\n')
 csr_base64_trimmed=$(echo ${csr_base64_trimmed} | tr -d ' ')
 
 echo "Requesting certificate from raspberry pi ..."
-curl --location --request POST 'https://raspberrypi:9000/hooks/issue_cert' --header 'Content-Type: application/json' --data-raw "{\"binary\":\"${csr_base64_trimmed}\"}" > certs/cert.pem
+curl --location --request POST 'https://jitp-server.local:9000/hooks/issue_cert' --header 'Content-Type: application/json' --data-raw "{\"binary\":\"${csr_base64_trimmed}\"}" > certs/cert.pem
 
 echo "Writing certificates to SE050 ..."
 ssscli set cert 0x20181002 --format PEM certs/rootCA.crt
