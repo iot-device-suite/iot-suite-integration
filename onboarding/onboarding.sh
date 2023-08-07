@@ -40,7 +40,6 @@ else
 fi
 
 AWSCLIENT_HOME=/data/config/os/aws/
-CUSTOMER_NAME=automation-one
 
 # Create Folder Structure
 echo "Creating Folder Structure ..."
@@ -48,7 +47,7 @@ mkdir -p /data/config/os/aws/certs /data/config/os/aws/config
 # mkdir -p $(jq -r '.rauc_hawkbit_client_config_dir' config/config.json)
 mkdir -p /data/config/os/hawkbit/
 # mkdir -p "$(jq -r '.remote_manager_config_dir' config/config.json)/.ssh"
-mkdir -p /config/os/root/.ssh/
+mkdir -p /data/config/os/esec/.ssh/
 # mkdir -p $(jq -r '.maintenance_task_temp_download_dir' config/config.json)
 mkdir -p /data/config/os/dm/downloads/
 
@@ -87,7 +86,7 @@ cat > config/config.json <<EOF
   "rauc_hawkbit_client_config_file": "config.cfg",
   "remote_manager_config_dir": "/data/config/os/esec/",
   "remote_manager_config_file": "RemoteManager.conf",
-  "ssh_pub_key_dir": "/config/os/root/.ssh/",
+  "ssh_pub_key_dir": "/data/config/os/esec/.ssh/",
   "ssh_pub_key_file": "id_ecdsa.pub",
   "isoconnect_app_config_dir": "/data/config/app_isoconnect/config/",
   "isoconnect_app_config_file": "customer_config.txt",
@@ -199,7 +198,7 @@ ssscli set cert 0x20181004 --format PEM certs/cert.pem
 
 # Recreating the SSH key
 echo "Removing existing SSH key ..."
-rm /config/os/root/.ssh/id_ecdsa
+rm /data/config/os/esec/.ssh/id_ecdsa
 
 echo "Creating the SSH key ..."
-ssh-keygen -f /config/os/root/.ssh/id_ecdsa -t ecdsa -b 256 -N ""
+ssh-keygen -f /data/config/os/esec/.ssh/id_ecdsa -t ecdsa -b 256 -N ""
